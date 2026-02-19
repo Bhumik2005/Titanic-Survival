@@ -1,8 +1,15 @@
 import pandas as pd
+import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument("--model", type=str, default="both",
+                    help="Choose model: logistic, random_forest, both")
+args = parser.parse_args()
 
 # ---------------------------
 # Load Dataset
@@ -51,6 +58,24 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 print("\nTraining size:", X_train.shape)
 print("Testing size:", X_test.shape)
+
+
+if args.model in ["logistic", "both"]:
+    print("\nRunning Logistic Regression...\n")
+    lr = LogisticRegression()
+    lr.fit(X_train, y_train)
+    y_pred_lr = lr.predict(X_test)
+    print("Logistic Accuracy:", accuracy_score(y_test, y_pred_lr))
+    print(classification_report(y_test, y_pred_lr))
+
+
+if args.model in ["random_forest", "both"]:
+    print("\nRunning Random Forest...\n")
+    rf = RandomForestClassifier(random_state=42)
+    rf.fit(X_train, y_train)
+    y_pred_rf = rf.predict(X_test)
+    print("Random Forest Accuracy:", accuracy_score(y_test, y_pred_rf))
+    print(classification_report(y_test, y_pred_rf))
 
 # ============================================================
 # LOGISTIC REGRESSION
