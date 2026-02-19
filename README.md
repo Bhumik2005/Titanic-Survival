@@ -32,6 +32,28 @@ Workflow:
 
 ---
 
-## 3️⃣ How to Run
+## How to Run
 
 1. Activate virtual environment:
+
+```
+..\ml_env\Scripts\activate
+```
+
+
+2. Run the training script:
+
+```
+python src/train.py
+```
+
+
+---
+
+👨‍💻 Author: Bhumik Kumta  
+GitHub: https://github.com/Bhumik2005  
+LinkedIn: https://www.linkedin.com/in/bhumik-kumta-/
+
+
+
+
