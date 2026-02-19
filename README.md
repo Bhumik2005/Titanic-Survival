@@ -35,3 +35,12 @@ Workflow:
 ## 3️⃣ How to Run
 
 1. Activate virtual environment:
+   ```
+..\ml_env\Scripts\activate
+```
+2. Run the training script:
+
+```
+python src/train.py
+```
+
