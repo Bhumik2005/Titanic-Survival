@@ -62,6 +62,7 @@ Technologies used:
 
 📂 Project Structure
 
+```
 titanic-survival/
 │
 ├── data/
@@ -73,7 +74,7 @@ titanic-survival/
 ├── app.py
 ├── requirements.txt
 └── README.md
-
+```
 
 Workflow:
 1. Data preprocessing (handling missing values, encoding)
