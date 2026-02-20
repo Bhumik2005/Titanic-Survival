@@ -13,14 +13,67 @@ Fare, Sex, and Age were the most important features influencing survival.
 
 ---
 
+📌 Features Used
+
+-Pclass
+
+-Sex
+
+-Age
+
+-SibSp
+
+-Parch
+
+-Fare
+
+-Embarked
+
+🤖 Models Compared
+
+-Logistic Regression
+
+-Tuned Random Forest (GridSearchCV)
+
+📊 Model Performance
+
+-Best Accuracy: ~82%
+
+-Cross Validation Accuracy: ~81.7%
+
+-Evaluation Metrics:
+
+  -Classification Report
+
+  -Confusion Matrix
+
+  -ROC Curve
+
+  -Feature Importance
+
 ## 2️⃣ Tech Stack & Workflow
-Technologies:
+Technologies used:
 - Python
 - Pandas
 - Scikit-learn
 - Matplotlib
 - Seaborn
-- Joblib
+- joblib
+
+📂 Project Structure
+
+titanic-survival/
+│
+├── data/
+│   └── train.csv
+├── models/
+│   └── best_model.pkl
+├── src/
+│   └── train.py
+├── app.py
+├── requirements.txt
+└── README.md
+
 
 Workflow:
 1. Data preprocessing (handling missing values, encoding)
