@@ -1,9 +1,14 @@
 import pandas as pd
 import argparse
-from sklearn.model_selection import train_test_split
+import joblib
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import GridSearchCV
 
 # Argument parser
 parser = argparse.ArgumentParser()
@@ -60,93 +65,107 @@ print("\nTraining size:", X_train.shape)
 print("Testing size:", X_test.shape)
 
 
-if args.model in ["logistic", "both"]:
-    print("\nRunning Logistic Regression...\n")
-    lr = LogisticRegression()
-    lr.fit(X_train, y_train)
-    y_pred_lr = lr.predict(X_test)
-    print("Logistic Accuracy:", accuracy_score(y_test, y_pred_lr))
-    print(classification_report(y_test, y_pred_lr))
+param_grid = {
+    "n_estimators": [100, 200],
+    "max_depth": [None, 5, 10],
+    "min_samples_split": [2, 5]
+}
 
+grid = GridSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_grid,
+    cv=3
+)
 
-if args.model in ["random_forest", "both"]:
-    print("\nRunning Random Forest...\n")
-    rf = RandomForestClassifier(random_state=42)
-    rf.fit(X_train, y_train)
-    y_pred_rf = rf.predict(X_test)
-    print("Random Forest Accuracy:", accuracy_score(y_test, y_pred_rf))
-    print(classification_report(y_test, y_pred_rf))
+grid.fit(X_train, y_train)
+
+print("Best Parameters:", grid.best_params_)
+
+rf_tuned = grid.best_estimator_
+
+models = {
+    "Logistic Regression": LogisticRegression(max_iter=1000),
+    "Random Forest (Tuned)": rf_tuned
+}
+
+best_model = None
+best_accuracy = 0
+
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    print(f"{name} Accuracy: {acc}")
+
+    if acc > best_accuracy:
+        best_accuracy = acc
+        best_model = model
+
+print("Best Model Accuracy:", best_accuracy)
+
+scores = cross_val_score(best_model, X, y, cv=5)
+print("Cross Validation Accuracy:", scores.mean())
+
+joblib.dump(best_model, "models/best_model.pkl")
+print("Best model saved successfully!")
 
 # ============================================================
 # LOGISTIC REGRESSION
 # ============================================================
+# Predict using best model
+y_pred = best_model.predict(X_test)
 
-log_model = LogisticRegression(max_iter=1000)
-log_model.fit(X_train, y_train)
-
-log_pred = log_model.predict(X_test)
-
-log_accuracy = accuracy_score(y_test, log_pred)
-
-print("\n=== Logistic Regression ===")
-print("Accuracy:", log_accuracy)
 print("\nClassification Report:")
-print(classification_report(y_test, log_pred))
+print(classification_report(y_test, y_pred))
+
 print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, log_pred))
+print(confusion_matrix(y_test, y_pred))
 
-# ============================================================
-# RANDOM FOREST
-# ============================================================
+# Heatmap
+cm = confusion_matrix(y_test, y_pred)
 
-rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-rf_model.fit(X_train, y_train)
-
-rf_pred = rf_model.predict(X_test)
-
-rf_accuracy = accuracy_score(y_test, rf_pred)
-
-print("\n=== Random Forest ===")
-print("Accuracy:", rf_accuracy)
-
-# ---------------------------
-# Compare Models
-# ---------------------------
-if rf_accuracy > log_accuracy:
-    print("\nRandom Forest performs better.")
-else:
-    print("\nLogistic Regression performs better.")
-
-import joblib
-
-# Save best model
-best_model = rf_model if rf_accuracy > log_accuracy else log_model
-
-joblib.dump(best_model, "models/best_model.pkl")
-print("\nBest model saved to models/best_model.pkl")
-
-# ---------------------------
-# Feature Importance (Random Forest)
-# ---------------------------
-import pandas as pd
-
-importances = rf_model.feature_importances_
-feature_names = X.columns
-
-feature_importance_df = pd.DataFrame({
-    "Feature": feature_names,
-    "Importance": importances
-}).sort_values(by="Importance", ascending=False)
-
-print("\n=== Feature Importance (Random Forest) ===")
-print(feature_importance_df)
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# Plot feature importance
-plt.figure(figsize=(8, 5))
-sns.barplot(x="Importance", y="Feature", data=feature_importance_df)
-plt.title("Feature Importance - Random Forest")
-plt.tight_layout()
+plt.figure()
+sns.heatmap(cm, annot=True, fmt='d')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
 plt.show()
+
+# ================================
+# ROC Curve
+# ================================
+
+y_prob = best_model.predict_proba(X_test)[:, 1]
+
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+
+plt.figure()
+plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+plt.plot([0, 1], [0, 1], linestyle="--")
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve")
+plt.legend()
+plt.show()
+
+def predict_new_passenger(data_dict):
+    model = joblib.load("models/best_model.pkl")
+    input_df = pd.DataFrame([data_dict])
+    prediction = model.predict(input_df)
+    return "Survived" if prediction[0] == 1 else "Did Not Survive"
+
+
+sample_passenger = {
+    "Pclass": 3,
+    "Sex": 0,
+    "Age": 22,
+    "SibSp": 1,
+    "Parch": 0,
+    "Fare": 7.25,
+    "Embarked_Q": 0,
+    "Embarked_S": 1
+}
+
+print("\nSample Passenger Prediction:")
+print(predict_new_passenger(sample_passenger))
