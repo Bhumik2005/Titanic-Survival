@@ -1,30 +1,23 @@
 import pandas as pd
-import argparse
 import joblib
 import seaborn as sns
 import matplotlib.pyplot as plt
-from sklearn.model_selection import train_test_split, cross_val_score
+
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.metrics import roc_curve, auc
-from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
 
-# Argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument("--model", type=str, default="both",
-                    help="Choose model: logistic, random_forest, both")
-args = parser.parse_args()
+# ============================================================
+# LOAD DATA
+# ============================================================
 
-# ---------------------------
-# Load Dataset
-# ---------------------------
 df = pd.read_csv("data/train.csv")
 print("Initial Shape:", df.shape)
 
-# ---------------------------
-# Data Cleaning
-# ---------------------------
+# ============================================================
+# DATA CLEANING
+# ============================================================
 
 # Drop Cabin (too many missing values)
 df = df.drop(columns=["Cabin"])
@@ -48,15 +41,17 @@ print("Cleaned Shape:", df.shape)
 print("\nMissing values after cleaning:")
 print(df.isnull().sum())
 
-# ---------------------------
-# Separate Features and Target
-# ---------------------------
+# ============================================================
+# FEATURES & TARGET
+# ============================================================
+
 X = df.drop("Survived", axis=1)
 y = df["Survived"]
 
-# ---------------------------
-# Train-Test Split
-# ---------------------------
+# ============================================================
+# TRAIN TEST SPLIT
+# ============================================================
+
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
@@ -64,6 +59,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 print("\nTraining size:", X_train.shape)
 print("Testing size:", X_test.shape)
 
+# ============================================================
+# HYPERPARAMETER TUNING (Random Forest)
+# ============================================================
 
 param_grid = {
     "n_estimators": [100, 200],
@@ -79,9 +77,13 @@ grid = GridSearchCV(
 
 grid.fit(X_train, y_train)
 
-print("Best Parameters:", grid.best_params_)
+print("\nBest Parameters:", grid.best_params_)
 
 rf_tuned = grid.best_estimator_
+
+# ============================================================
+# TRAIN MODELS
+# ============================================================
 
 models = {
     "Logistic Regression": LogisticRegression(max_iter=1000),
@@ -97,33 +99,44 @@ for name, model in models.items():
     acc = accuracy_score(y_test, y_pred)
     print(f"{name} Accuracy: {acc}")
 
+    # Save individual models
+    if name == "Logistic Regression":
+        joblib.dump(model, "models/logistic_model.pkl")
+
+    if "Random Forest" in name:
+        joblib.dump(model, "models/random_forest_model.pkl")
+
     if acc > best_accuracy:
         best_accuracy = acc
         best_model = model
 
-print("Best Model Accuracy:", best_accuracy)
+print("\nBest Model Accuracy:", best_accuracy)
+
+# Save best model
+joblib.dump(best_model, "models/best_model.pkl")
+print("All models saved successfully!")
+
+# ============================================================
+# CROSS VALIDATION
+# ============================================================
 
 scores = cross_val_score(best_model, X, y, cv=5)
 print("Cross Validation Accuracy:", scores.mean())
 
-joblib.dump(best_model, "models/best_model.pkl")
-print("Best model saved successfully!")
+# ============================================================
+# EVALUATION
+# ============================================================
 
-# ============================================================
-# LOGISTIC REGRESSION
-# ============================================================
-# Predict using best model
 y_pred = best_model.predict(X_test)
 
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
 print("\nConfusion Matrix:")
-print(confusion_matrix(y_test, y_pred))
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
 
 # Heatmap
-cm = confusion_matrix(y_test, y_pred)
-
 plt.figure()
 sns.heatmap(cm, annot=True, fmt='d')
 plt.title("Confusion Matrix")
@@ -131,13 +144,13 @@ plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.show()
 
-# ================================
-# ROC Curve
-# ================================
+# ============================================================
+# ROC CURVE
+# ============================================================
 
 y_prob = best_model.predict_proba(X_test)[:, 1]
 
-fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+fpr, tpr, _ = roc_curve(y_test, y_prob)
 roc_auc = auc(fpr, tpr)
 
 plt.figure()
@@ -148,6 +161,10 @@ plt.ylabel("True Positive Rate")
 plt.title("ROC Curve")
 plt.legend()
 plt.show()
+
+# ============================================================
+# SAMPLE PREDICTION FUNCTION
+# ============================================================
 
 def predict_new_passenger(data_dict):
     model = joblib.load("models/best_model.pkl")
