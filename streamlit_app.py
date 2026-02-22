@@ -2,98 +2,104 @@ import streamlit as st
 import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
-import seaborn as sns
 
-# ---------------------------
-# Page Configuration
-# ---------------------------
+# ---------------------------------------------------
+# Page Config
+# ---------------------------------------------------
 st.set_page_config(
-    page_title="Titanic Survival Prediction",
+    page_title="Titanic Survival Predictor",
+    page_icon="🚢",
     layout="centered"
 )
 
-# ---------------------------
-# Header
-# ---------------------------
-st.title("Titanic Survival Prediction")
-st.caption("Machine Learning Model for Passenger Survival Classification")
-
+st.title("🚢 Titanic Survival Prediction App")
+st.markdown("Predict whether a passenger would survive the Titanic disaster.")
 st.markdown("---")
 
-# ---------------------------
-# Load Model
-# ---------------------------
-model = joblib.load("models/best_model.pkl")
+# ---------------------------------------------------
+# Load Models
+# ---------------------------------------------------
+logistic_model = joblib.load("models/logistic_model.pkl")
+rf_model = joblib.load("models/random_forest_model.pkl")
 
-st.markdown("---")
-st.subheader("Model Insights")
+# ---------------------------------------------------
+# Sidebar - Model Selection
+# ---------------------------------------------------
+st.sidebar.header("Model Selection")
 
-if hasattr(model, "feature_importances_"):
+model_choice = st.sidebar.selectbox(
+    "Choose Model",
+    ("Logistic Regression", "Random Forest")
+)
 
-    feature_names = [
-        "Pclass", "Sex", "Age", "SibSp",
-        "Parch", "Fare", "Embarked_Q", "Embarked_S"
-    ]
+if model_choice == "Logistic Regression":
+    model = logistic_model
+else:
+    model = rf_model
 
-    importances = model.feature_importances_
+# ---------------------------------------------------
+# User Input
+# ---------------------------------------------------
+st.header("Passenger Details")
 
-    fig, ax = plt.subplots()
-    sns.barplot(x=importances, y=feature_names, ax=ax)
-    ax.set_title("Feature Importance")
-    st.pyplot(fig)
+pclass = st.selectbox("Passenger Class", [1, 2, 3])
+sex = st.selectbox("Sex", ["Male", "Female"])
+age = st.slider("Age", 0, 80, 25)
+sibsp = st.number_input("Siblings / Spouses Aboard", 0, 8, 0)
+parch = st.number_input("Parents / Children Aboard", 0, 6, 0)
+fare = st.number_input("Fare", 0.0, 600.0, 50.0)
 
-# ---------------------------
-# Input Section
-# ---------------------------
-st.subheader("Passenger Information")
+embarked = st.selectbox("Embarked", ["S", "C", "Q"])
 
-col1, col2 = st.columns(2)
-
-with col1:
-    pclass = st.selectbox("Passenger Class", [1, 2, 3])
-    sex = st.selectbox("Sex", ["Male", "Female"])
-    age = st.number_input("Age", min_value=0, max_value=100, value=30)
-
-with col2:
-    sibsp = st.number_input("Siblings / Spouses", min_value=0, max_value=10, value=0)
-    parch = st.number_input("Parents / Children", min_value=0, max_value=10, value=0)
-    fare = st.number_input("Fare", min_value=0.0, max_value=600.0, value=50.0)
-
-embarked = st.selectbox("Embarked Port", ["S", "Q", "C"])
-
-# ---------------------------
-# Data Preparation
-# ---------------------------
+# Convert inputs to model format
 sex = 0 if sex == "Male" else 1
-embarked_q = 1 if embarked == "Q" else 0
-embarked_s = 1 if embarked == "S" else 0
+embarked_Q = 1 if embarked == "Q" else 0
+embarked_S = 1 if embarked == "S" else 0
 
-input_data = pd.DataFrame([{
+input_data = {
     "Pclass": pclass,
     "Sex": sex,
     "Age": age,
     "SibSp": sibsp,
     "Parch": parch,
     "Fare": fare,
-    "Embarked_Q": embarked_q,
-    "Embarked_S": embarked_s
-}])
+    "Embarked_Q": embarked_Q,
+    "Embarked_S": embarked_S
+}
 
-st.markdown("---")
+input_df = pd.DataFrame([input_data])
 
-# ---------------------------
-# Prediction Section
-# ---------------------------
-if st.button("Predict", use_container_width=True):
+# ---------------------------------------------------
+# Prediction
+# ---------------------------------------------------
+if st.button("Predict Survival"):
 
-    prediction = model.predict(input_data)[0]
-    probability = model.predict_proba(input_data)[0][1]
+    prediction = model.predict(input_df)[0]
+    probability = model.predict_proba(input_df)[0][1]
 
-    st.subheader("Result")
+    st.markdown("---")
+    st.subheader("Prediction Result")
 
     if prediction == 1:
-        st.success("Prediction: Survived")
+        st.success("✅ Passenger is likely to SURVIVE")
     else:
-        st.error("Prediction: Did Not Survive")
+        st.error("❌ Passenger is NOT likely to survive")
 
-    st.metric("Survival Probability", f"{probability:.2%}")
+    st.info(f"🎯 Survival Probability: {probability:.2%}")
+
+    # ---------------------------------------------------
+    # Feature Importance (Only for Random Forest)
+    # ---------------------------------------------------
+    if model_choice == "Random Forest":
+
+        st.markdown("---")
+        st.subheader("Feature Importance")
+
+        importances = model.feature_importances_
+        features = input_df.columns
+
+        fig, ax = plt.subplots()
+        ax.barh(features, importances)
+        ax.set_title("Feature Importance")
+
+        st.pyplot(fig)
